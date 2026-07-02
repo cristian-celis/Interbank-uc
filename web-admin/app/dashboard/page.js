@@ -30,7 +30,8 @@ export default function DashboardPage() {
     }
 
     try {
-      const url = new URL('http://127.0.0.1:8003/admin/solicitudes');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8003';
+      const url = new URL(`${apiUrl}/admin/solicitudes`);
       if (currentFilter !== 'todas') {
         url.searchParams.append('estado', currentFilter);
       }
@@ -77,7 +78,8 @@ export default function DashboardPage() {
   const submitDecision = async () => {
     const token = localStorage.getItem('admin_jwt');
     try {
-      const res = await fetch(`http://127.0.0.1:8003/admin/solicitudes/${selectedReq.id}/decision`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8003';
+      const res = await fetch(`${apiUrl}/admin/solicitudes/${selectedReq.id}/decision`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
