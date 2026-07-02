@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_dependencies.dart';
 import '../../../app/theme/interbank_theme.dart';
+import '../../../core/business/credit_policy.dart';
 import '../../../core/validation/validators.dart';
 import '../../../shared/presentation/interbank_logo.dart';
 import '../../auth/domain/entities/auth_user.dart';
@@ -28,8 +29,12 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   final _amountController = TextEditingController();
   final _loanAmountController = TextEditingController(text: '12000');
   final _loanIncomeController = TextEditingController(text: '5000');
-  final _loanBusinessController = TextEditingController(text: 'Bodega familiar');
-  final _loanPurposeController = TextEditingController(text: 'Capital de trabajo');
+  final _loanBusinessController = TextEditingController(
+    text: 'Bodega familiar',
+  );
+  final _loanPurposeController = TextEditingController(
+    text: 'Capital de trabajo',
+  );
   int _selectedIndex = 0;
   String? _transferMessage;
   String? _loanMessage;
@@ -56,10 +61,24 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   }
 
   Future<void> _submitLoanRequest() async {
+    final amount = double.parse(_loanAmountController.text);
+    final policy = CreditPolicies.infer(
+      purpose: _loanPurposeController.text,
+      businessType: 'comercio',
+    );
+    final validationError =
+        policy.validateAmount(amount) ??
+        policy.validateTerm(12) ??
+        policy.validateTea(policy.defaultTea);
+    if (validationError != null) {
+      setState(() => _loanMessage = validationError);
+      return;
+    }
+
     setState(() => _submittingLoan = true);
     try {
       await widget.dependencies.createCustomerLoanRequest(
-        amount: double.parse(_loanAmountController.text),
+        amount: amount,
         termMonths: 12,
         purpose: _loanPurposeController.text.trim(),
         businessType: 'comercio',
@@ -502,13 +521,17 @@ class _LoanRequestsTab extends StatelessWidget {
                 TextField(
                   controller: amountController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Monto solicitado'),
+                  decoration: const InputDecoration(
+                    labelText: 'Monto solicitado',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: incomeController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Ingreso mensual'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ingreso mensual',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -518,8 +541,12 @@ class _LoanRequestsTab extends StatelessWidget {
                 const SizedBox(height: 10),
                 TextField(
                   controller: purposeController,
-                  decoration: const InputDecoration(labelText: 'Destino del credito'),
+                  decoration: const InputDecoration(
+                    labelText: 'Destino del credito',
+                  ),
                 ),
+                const SizedBox(height: 14),
+                const _PolicyNotice(),
                 const SizedBox(height: 14),
                 ElevatedButton.icon(
                   onPressed: submitting ? null : onSubmit,
@@ -553,6 +580,27 @@ class _LoanRequestsTab extends StatelessWidget {
   }
 }
 
+class _PolicyNotice extends StatelessWidget {
+  const _PolicyNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    const policy = CreditPolicies.businessWorkingCapital;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        'TEA referencial ${policy.defaultTea.toStringAsFixed(2)}% '
+        '(${policy.minTea.toStringAsFixed(2)}%-${policy.maxTea.toStringAsFixed(2)}%). '
+        'Fuente: ${policy.source}.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: const Color(0xFF64748B),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 class _LoanRequestTile extends StatelessWidget {
   const _LoanRequestTile(this.request);
 
@@ -573,8 +621,8 @@ class _LoanRequestTile extends StatelessWidget {
     final color = _statusColor();
     final dateStr = request.createdAt != null
         ? '${request.createdAt!.day.toString().padLeft(2, '0')}/'
-          '${request.createdAt!.month.toString().padLeft(2, '0')}/'
-          '${request.createdAt!.year}'
+              '${request.createdAt!.month.toString().padLeft(2, '0')}/'
+              '${request.createdAt!.year}'
         : '';
 
     return Card(
@@ -595,23 +643,37 @@ class _LoanRequestTile extends StatelessWidget {
                 children: [
                   Text(
                     request.expedient,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    request.purpose.isNotEmpty ? request.purpose : 'Sin destino especificado',
-                    style: const TextStyle(color: Color(0xFF555555), fontSize: 12),
+                    request.purpose.isNotEmpty
+                        ? request.purpose
+                        : 'Sin destino especificado',
+                    style: const TextStyle(
+                      color: Color(0xFF555555),
+                      fontSize: 12,
+                    ),
                   ),
                   if (dateStr.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       'Creado el $dateStr',
-                      style: const TextStyle(color: Color(0xFF999999), fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF999999),
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -619,7 +681,11 @@ class _LoanRequestTile extends StatelessWidget {
                     ),
                     child: Text(
                       request.statusLabel,
-                      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -631,12 +697,18 @@ class _LoanRequestTile extends StatelessWidget {
               children: [
                 Text(
                   'S/ ${finalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
                 ),
                 if (request.advisorName.isNotEmpty)
                   Text(
                     request.advisorName.split(' ').first,
-                    style: const TextStyle(color: Color(0xFF999999), fontSize: 11),
+                    style: const TextStyle(
+                      color: Color(0xFF999999),
+                      fontSize: 11,
+                    ),
                   ),
               ],
             ),
@@ -1233,7 +1305,10 @@ class _NotificationTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: InterbankTheme.lime.withValues(alpha: 0.24),
-          child: const Icon(Icons.notifications_none, color: InterbankTheme.green),
+          child: const Icon(
+            Icons.notifications_none,
+            color: InterbankTheme.green,
+          ),
         ),
         title: Text(notification.name),
         subtitle: Text(notification.category),

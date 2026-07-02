@@ -1,7 +1,8 @@
 """Schemas Pydantic del lado app de clientes."""
 from datetime import date, datetime
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
+from app.core.credit_policy import validate_credit_terms
 
 
 # ── Autenticación ──────────────────────────────────────────────
@@ -134,6 +135,17 @@ class SolicitudClienteIn(BaseModel):
     tipo_negocio: str | None = None
     nombre_negocio: str | None = None
     ingresos_estimados: float | None = None
+
+    @model_validator(mode="after")
+    def validate_official_credit_ranges(self):
+        validate_credit_terms(
+            amount=self.monto_solicitado,
+            term_months=self.plazo_meses,
+            tea=None,
+            destino_credito=self.destino_credito,
+            tipo_negocio=self.tipo_negocio,
+        )
+        return self
 
 
 class SolicitudClienteOut(BaseModel):

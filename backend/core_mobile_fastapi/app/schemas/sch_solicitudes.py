@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
+from app.core.credit_policy import validate_credit_terms
 
 
 class SolicitudIn(BaseModel):
@@ -21,6 +22,17 @@ class SolicitudIn(BaseModel):
     cuota_estimada: Optional[float] = None
     tea_referencial: Optional[float] = None
     firma_cliente_base64: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_official_credit_ranges(self):
+        validate_credit_terms(
+            amount=self.monto_solicitado,
+            term_months=self.plazo_meses,
+            tea=self.tea_referencial,
+            destino_credito=self.destino_credito,
+            tipo_negocio=self.tipo_negocio,
+        )
+        return self
 
 
 class SolicitudCreada(BaseModel):

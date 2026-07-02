@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_dependencies.dart';
 import '../../../app/theme/interbank_theme.dart';
-import '../../../core/validation/validators.dart';
+import '../../../core/business/credit_policy.dart';
 import '../../../shared/presentation/interbank_logo.dart';
 import '../../auth/domain/entities/auth_user.dart';
 import '../domain/entities/sales_portfolio.dart';
@@ -44,7 +44,9 @@ class _SalesHomePageState extends State<SalesHomePage> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || _submitting) return;
       setState(() {
-        _portfolioFuture = widget.dependencies.getSalesPortfolio(widget.user.id);
+        _portfolioFuture = widget.dependencies.getSalesPortfolio(
+          widget.user.id,
+        );
       });
     });
   }
@@ -99,11 +101,19 @@ class _SalesHomePageState extends State<SalesHomePage> {
     }
   }
 
-  Future<void> _completeAssignedApplication(CreditApplication application) async {
-    final incomeController = TextEditingController(text: (application.amount * 0.42).toStringAsFixed(2));
-    final expensesController = TextEditingController(text: (application.amount * 0.14).toStringAsFixed(2));
-    final assetsController = TextEditingController(text: (application.amount * 1.8).toStringAsFixed(2));
-    
+  Future<void> _completeAssignedApplication(
+    CreditApplication application,
+  ) async {
+    final incomeController = TextEditingController(
+      text: (application.amount * 0.42).toStringAsFixed(2),
+    );
+    final expensesController = TextEditingController(
+      text: (application.amount * 0.14).toStringAsFixed(2),
+    );
+    final assetsController = TextEditingController(
+      text: (application.amount * 1.8).toStringAsFixed(2),
+    );
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -114,7 +124,9 @@ class _SalesHomePageState extends State<SalesHomePage> {
             TextField(
               controller: incomeController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Ingresos mensuales'),
+              decoration: const InputDecoration(
+                labelText: 'Ingresos mensuales',
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -126,7 +138,9 @@ class _SalesHomePageState extends State<SalesHomePage> {
             TextField(
               controller: assetsController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Patrimonio estimado'),
+              decoration: const InputDecoration(
+                labelText: 'Patrimonio estimado',
+              ),
             ),
           ],
         ),
@@ -202,12 +216,12 @@ class _SalesHomePageState extends State<SalesHomePage> {
               _PortfolioTab(portfolio: portfolio),
               _RouteTab(visits: portfolio.dailyVisits),
               _ApplicationTab(
-                applications: portfolio.activeApplications.where((a) => a.status == ApplicationStatus.sent).toList(),
+                applications: portfolio.activeApplications
+                    .where((a) => a.status == ApplicationStatus.sent)
+                    .toList(),
                 onComplete: _completeAssignedApplication,
               ),
-              _StatusTab(
-                applications: portfolio.activeApplications,
-              ),
+              _StatusTab(applications: portfolio.activeApplications),
             ],
           ),
           bottomNavigationBar: NavigationBar(
@@ -300,10 +314,7 @@ class _RouteTab extends StatelessWidget {
 }
 
 class _ApplicationTab extends StatelessWidget {
-  const _ApplicationTab({
-    required this.applications,
-    required this.onComplete,
-  });
+  const _ApplicationTab({required this.applications, required this.onComplete});
 
   final List<CreditApplication> applications;
   final Future<void> Function(CreditApplication) onComplete;
@@ -339,8 +350,10 @@ class _StatusTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completedApplications = applications.where((a) => a.status != ApplicationStatus.sent).toList();
-    
+    final completedApplications = applications
+        .where((a) => a.status != ApplicationStatus.sent)
+        .toList();
+
     return _SalesTabScaffold(
       children: [
         const _SectionTitle(
@@ -703,8 +716,8 @@ class _ApplicationStatusCard extends StatelessWidget {
     final color = _statusColor(application.status);
     final dateStr = application.createdAt != null
         ? '${application.createdAt!.day.toString().padLeft(2, '0')}/'
-          '${application.createdAt!.month.toString().padLeft(2, '0')}/'
-          '${application.createdAt!.year}'
+              '${application.createdAt!.month.toString().padLeft(2, '0')}/'
+              '${application.createdAt!.year}'
         : '';
 
     return Card(
@@ -725,26 +738,38 @@ class _ApplicationStatusCard extends StatelessWidget {
                 children: [
                   Text(
                     application.customerName,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     application.bureauCheck.result,
-                    style: const TextStyle(color: Color(0xFF555555), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFF555555),
+                      fontSize: 12,
+                    ),
                   ),
                   if (dateStr.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       'Solicitud del $dateStr',
-                      style: const TextStyle(color: Color(0xFF999999), fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF999999),
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 4),
                   Text(
                     'S/ ${application.amount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
@@ -765,7 +790,11 @@ class _ApplicationStatusCard extends StatelessWidget {
                 ),
                 child: Text(
                   application.status.label,
-                  style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
           ],
@@ -1006,12 +1035,15 @@ class _ScheduleSimulator extends StatelessWidget {
   Widget build(BuildContext context) {
     final amount =
         double.tryParse(amountController.text.replaceAll(',', '.')) ?? 0;
+    const policy = CreditPolicies.businessWorkingCapital;
     const months = 12;
-    final monthlyRate = 0.32 / 12;
     final installment = amount <= 0
         ? 0.0
-        : amount *
-              (monthlyRate / (1 - (1 / _pow(1 + monthlyRate, months))));
+        : CreditPolicies.frenchInstallment(
+            amount: amount,
+            termMonths: months,
+            tea: policy.defaultTea,
+          );
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1029,7 +1061,15 @@ class _ScheduleSimulator extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SchedulePreviewRow(label: 'Plazo', value: '$months cuotas'),
-          _SchedulePreviewRow(label: 'TEA referencial', value: '32.00%'),
+          _SchedulePreviewRow(
+            label: 'TEA referencial',
+            value: '${policy.defaultTea.toStringAsFixed(2)}%',
+          ),
+          _SchedulePreviewRow(
+            label: 'Rango oficial',
+            value:
+                '${policy.minTea.toStringAsFixed(2)}% - ${policy.maxTea.toStringAsFixed(2)}%',
+          ),
           _SchedulePreviewRow(
             label: 'Cuota estimada',
             value: 'S/ ${installment.toStringAsFixed(2)}',
@@ -1037,14 +1077,6 @@ class _ScheduleSimulator extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static double _pow(double base, int exponent) {
-    var result = 1.0;
-    for (var i = 0; i < exponent; i++) {
-      result *= base;
-    }
-    return result;
   }
 }
 

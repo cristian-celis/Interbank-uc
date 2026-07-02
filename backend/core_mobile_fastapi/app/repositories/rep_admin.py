@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from app.core.credit_policy import french_installment, validate_credit_terms
 
 
 def listar_solicitudes(db: Session, estado: str | None = None) -> list[dict]:
@@ -81,9 +82,15 @@ def decidir(
 
 def _desembolsar(db: Session, solicitud: dict, monto: float) -> None:
     plazo = int(solicitud["plazo_meses"] or 12)
-    tea = float(solicitud["tea_referencial"] or 32)
+    _, tea = validate_credit_terms(
+        amount=monto,
+        term_months=plazo,
+        tea=solicitud["tea_referencial"],
+        destino_credito=solicitud["destino_credito"],
+        tipo_negocio=solicitud["tipo_negocio"],
+    )
     monthly_rate = (1 + tea / 100) ** (1 / 12) - 1
-    cuota = monto * monthly_rate / (1 - (1 + monthly_rate) ** -plazo)
+    cuota = french_installment(monto, plazo, tea)
     codigo = "CRED-MOB-" + uuid.uuid4().hex[:10].upper()
     db.execute(text("""
         INSERT INTO cr_creditos (

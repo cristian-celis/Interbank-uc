@@ -8,6 +8,7 @@ from app.models.mdl_cliente_mobile import (
     UsuarioCliente, CrCuentaAhorro, CrCredito, CrCronogramaPago,
     CrMovimiento, Tarjeta, OperacionCliente, Notificacion,
 )
+from app.core.credit_policy import french_installment, validate_credit_terms
 
 
 def get_usuario_by_username(db: Session, username: str) -> UsuarioCliente | None:
@@ -148,7 +149,18 @@ def crear_solicitud_cliente(db: Session, cliente_id: str, data: dict) -> dict:
 
     solicitud_id = str(uuid.uuid4())
     expediente = "EXP-" + solicitud_id.replace("-", "")[:8].upper()
-    cuota = float(data["monto_solicitado"]) / max(int(data["plazo_meses"]), 1)
+    _, tea = validate_credit_terms(
+        amount=float(data["monto_solicitado"]),
+        term_months=int(data["plazo_meses"]),
+        tea=None,
+        destino_credito=data.get("destino_credito"),
+        tipo_negocio=data.get("tipo_negocio"),
+    )
+    cuota = french_installment(
+        float(data["monto_solicitado"]),
+        int(data["plazo_meses"]),
+        tea,
+    )
     db.execute(text("""
         INSERT INTO solicitudes_credito (
             id, numero_expediente, asesor_id, cliente_id, agencia_id, canal,
@@ -159,7 +171,7 @@ def crear_solicitud_cliente(db: Session, cliente_id: str, data: dict) -> dict:
             :id, :exp, :asesor, :cliente, :agencia, 'cliente',
             :tipo_negocio, :nombre_negocio, :ingresos, :monto,
             :plazo, 'PEN', 'mensual', 'sin_garantia', :destino,
-            :cuota, 32.0, 'borrador'
+            :cuota, :tea, 'borrador'
         )
     """), {
         "id": solicitud_id, "exp": expediente, "asesor": asignado["id"],
@@ -168,7 +180,7 @@ def crear_solicitud_cliente(db: Session, cliente_id: str, data: dict) -> dict:
         "nombre_negocio": data.get("nombre_negocio"),
         "ingresos": data.get("ingresos_estimados"),
         "monto": data["monto_solicitado"], "plazo": data["plazo_meses"],
-        "destino": data["destino_credito"], "cuota": cuota,
+        "destino": data["destino_credito"], "cuota": cuota, "tea": tea,
     })
     db.add(Notificacion(
         destinatario_tipo="asesor",

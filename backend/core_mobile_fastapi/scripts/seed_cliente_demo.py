@@ -72,28 +72,28 @@ def run():
             estado="activa",
         ))
 
-        # ── Crédito de consumo ─────────────────────────────────
+        # ── Crédito de consumo dentro del rango oficial de préstamo personal ──
         db.add(CrCredito(
             cod_cuenta_credito=COD_CREDITO,
             cliente_id=cliente.id,
-            producto="Crédito Consumo",
-            monto_desembolsado=102122.43,
-            saldo_capital=68238.06,
-            saldo_total=70238.06,
+            producto="Préstamo Personal",
+            monto_desembolsado=36000.00,
+            saldo_capital=20629.18,
+            saldo_total=23929.87,
             dias_mora=0,
             calificacion_interna="normal",
             estado="vigente",
-            fecha_desembolso=date(2023, 10, 10),
-            tea=18.50,
-            cuotas_total=72,
+            fecha_desembolso=date(2024, 1, 17),
+            tea=12.49,
+            cuotas_total=60,
             cuotas_pagadas=30,
         ))
 
         # Cronograma: cuotas 29..38 (29-30 pagadas, 31 próxima)
-        cuota_total = 1999.96
-        capital = 1324.09
-        interes = 638.26
-        saldo = 69562.15
+        cuota_total = 797.66
+        capital = 594.36
+        interes = 203.30
+        saldo = 22412.26
         for nro in range(29, 39):
             saldo = round(saldo - capital, 2)
             pagada = nro <= 30
@@ -148,7 +148,7 @@ def run():
         # ── Notificaciones ─────────────────────────────────────
         notifs = [
             ("Compra con tarjeta", "Consumo Claude.ai por S/ 72.57 (pendiente de procesar).", "compra"),
-            ("Recordatorio de pago", "Tu cuota 31 de 72 vence el 10 may 2026 por S/ 1,999.96.", "recordatorio"),
+            ("Recordatorio de pago", "Tu cuota 31 de 60 vence el 10 may 2026 por S/ 797.66.", "recordatorio"),
             ("Oferta para ti", "Depósito a plazo hasta 3.85% TREA a 6 meses. ¡Haz crecer tus ahorros!", "oferta"),
         ]
         for titulo, cuerpo, tipo in notifs:

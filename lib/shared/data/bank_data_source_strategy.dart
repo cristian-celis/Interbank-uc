@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:postgres/postgres.dart';
 
+import '../../core/business/credit_policy.dart';
 import '../../features/auth/data/models/auth_user_model.dart';
 import '../../features/auth/domain/entities/auth_requests.dart';
 import '../../features/auth/domain/entities/auth_user.dart';
@@ -471,7 +472,8 @@ class CoreMobileApiDataSource implements BankDataSource {
     );
 
     final mappedAccounts = accounts.map((account) {
-      final balance = _num(account['saldo_capital']) + _num(account['saldo_interes']);
+      final balance =
+          _num(account['saldo_capital']) + _num(account['saldo_interes']);
       return {
         'id': account['id'],
         'name': account['tipo_cuenta'] ?? 'Cuenta ahorro',
@@ -578,7 +580,9 @@ class CoreMobileApiDataSource implements BankDataSource {
           'creditFile': {
             'score': item['score_prioridad'] ?? 0,
             'riskLevel': item['prioridad'] ?? 'N/D',
-            'activeProducts': ['S/ ${_num(item['monto_credito']).toStringAsFixed(2)}'],
+            'activeProducts': [
+              'S/ ${_num(item['monto_credito']).toStringAsFixed(2)}',
+            ],
             'paymentBehavior': item['estado_visita'] ?? 'pendiente',
           },
         };
@@ -608,17 +612,13 @@ class CoreMobileApiDataSource implements BankDataSource {
     required String type,
     required double amount,
   }) async {
-    await _postJson(
-      '/cliente/operaciones',
-      {
-        'cod_cuenta_origen': originAccount,
-        'cod_cuenta_destino': destinationAccount,
-        'tipo': type,
-        'monto': amount,
-        'moneda': 'PEN',
-      },
-      token: _customerToken,
-    );
+    await _postJson('/cliente/operaciones', {
+      'cod_cuenta_origen': originAccount,
+      'cod_cuenta_destino': destinationAccount,
+      'tipo': type,
+      'monto': amount,
+      'moneda': 'PEN',
+    }, token: _customerToken);
   }
 
   @override
@@ -630,18 +630,14 @@ class CoreMobileApiDataSource implements BankDataSource {
     required String businessName,
     required double income,
   }) async {
-    await _postJson(
-      '/cliente/solicitudes',
-      {
-        'monto_solicitado': amount,
-        'plazo_meses': termMonths,
-        'destino_credito': purpose,
-        'tipo_negocio': businessType,
-        'nombre_negocio': businessName,
-        'ingresos_estimados': income,
-      },
-      token: _customerToken,
-    );
+    await _postJson('/cliente/solicitudes', {
+      'monto_solicitado': amount,
+      'plazo_meses': termMonths,
+      'destino_credito': purpose,
+      'tipo_negocio': businessType,
+      'nombre_negocio': businessName,
+      'ingresos_estimados': income,
+    }, token: _customerToken);
   }
 
   @override
@@ -653,65 +649,58 @@ class CoreMobileApiDataSource implements BankDataSource {
     required double? latitude,
     required double? longitude,
   }) async {
-    await _postJson(
-      '/solicitudes/$applicationId/completar',
-      {
-        'ingresos_estimados': income,
-        'gastos_mensuales': expenses,
-        'patrimonio_estimado': assets,
-        'lat': latitude,
-        'lng': longitude,
-        'firma_cliente_base64': 'firma-web-$applicationId',
-        'consentimiento_base64': 'consentimiento-web-$applicationId',
-      },
-      token: _salesToken,
-    );
+    await _postJson('/solicitudes/$applicationId/completar', {
+      'ingresos_estimados': income,
+      'gastos_mensuales': expenses,
+      'patrimonio_estimado': assets,
+      'lat': latitude,
+      'lng': longitude,
+      'firma_cliente_base64': 'firma-web-$applicationId',
+      'consentimiento_base64': 'consentimiento-web-$applicationId',
+    }, token: _salesToken);
   }
 
   @override
   Future<CreditApplication> submitCreditApplication(
     CreditApplicationDraft draft,
   ) async {
+    const policy = CreditPolicies.businessWorkingCapital;
+    const termMonths = 12;
+    final installment = CreditPolicies.frenchInstallment(
+      amount: draft.amount,
+      termMonths: termMonths,
+      tea: policy.defaultTea,
+    );
     final parts = draft.customerName.trim().split(RegExp(r'\s+'));
-    final preEval = await _postJson(
-      '/pre-evaluar',
-      {
-        'numero_documento': draft.dni,
-        'nombres': draft.customerName,
-        'tipo_negocio': draft.businessActivity,
-        'ingresos_estimados': draft.amount * 0.35,
-        'monto_solicitado': draft.amount,
-        'destino_credito': 'Capital de trabajo',
-      },
-      token: _salesToken,
-    );
-    final bureau = await _postJson(
-      '/buro/consulta',
-      {'dni': draft.dni},
-      token: _salesToken,
-    );
-    final data = await _postJson(
-      '/solicitudes',
-      {
-        'numero_documento': draft.dni,
-        'nombres': parts.isEmpty ? draft.customerName : parts.first,
-        'apellidos': parts.length <= 1 ? '' : parts.skip(1).join(' '),
-        'telefono': draft.phone,
-        'tipo_negocio': draft.businessActivity,
-        'nombre_negocio': draft.customerName,
-        'ingresos_estimados': draft.amount * 0.35,
-        'monto_solicitado': draft.amount,
-        'plazo_meses': 12,
-        'moneda': 'PEN',
-        'tipo_cuota': 'mensual',
-        'garantia': 'sin_garantia',
-        'destino_credito': 'Capital de trabajo',
-        'cuota_estimada': draft.amount / 12,
-        'tea_referencial': 32.0,
-        'firma_cliente_base64': 'firma-demo-${draft.dni}',
-      },
-      token: _salesToken,
-    );
+    final preEval = await _postJson('/pre-evaluar', {
+      'numero_documento': draft.dni,
+      'nombres': draft.customerName,
+      'tipo_negocio': draft.businessActivity,
+      'ingresos_estimados': draft.amount * 0.35,
+      'monto_solicitado': draft.amount,
+      'destino_credito': 'Capital de trabajo',
+    }, token: _salesToken);
+    final bureau = await _postJson('/buro/consulta', {
+      'dni': draft.dni,
+    }, token: _salesToken);
+    final data = await _postJson('/solicitudes', {
+      'numero_documento': draft.dni,
+      'nombres': parts.isEmpty ? draft.customerName : parts.first,
+      'apellidos': parts.length <= 1 ? '' : parts.skip(1).join(' '),
+      'telefono': draft.phone,
+      'tipo_negocio': draft.businessActivity,
+      'nombre_negocio': draft.customerName,
+      'ingresos_estimados': draft.amount * 0.35,
+      'monto_solicitado': draft.amount,
+      'plazo_meses': termMonths,
+      'moneda': 'PEN',
+      'tipo_cuota': 'mensual',
+      'garantia': 'sin_garantia',
+      'destino_credito': 'Capital de trabajo',
+      'cuota_estimada': installment,
+      'tea_referencial': policy.defaultTea,
+      'firma_cliente_base64': 'firma-demo-${draft.dni}',
+    }, token: _salesToken);
 
     return CreditApplicationModel.fromMap({
       'id': data['id'],
@@ -791,11 +780,13 @@ class CoreMobileApiDataSource implements BankDataSource {
   }
 
   static String _nextPaymentDate(List<Map<String, Object?>> schedule) {
-    if (schedule.isEmpty) return DateTime.now().toIso8601String().split('T').first;
+    if (schedule.isEmpty)
+      return DateTime.now().toIso8601String().split('T').first;
     return schedule.firstWhere(
-      (item) => item['estado_cuota'] != 'pagada',
-      orElse: () => schedule.first,
-    )['fecha_vencimiento'] as String;
+          (item) => item['estado_cuota'] != 'pagada',
+          orElse: () => schedule.first,
+        )['fecha_vencimiento']
+        as String;
   }
 
   static double _movementAmount(Map<String, Object?> movement) {

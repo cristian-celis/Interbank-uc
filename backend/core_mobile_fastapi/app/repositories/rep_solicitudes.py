@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from app.core.credit_policy import french_installment, validate_credit_terms
 
 
 def _upsert_cliente(db: Session, d: dict) -> str:
@@ -35,6 +36,20 @@ def _upsert_cliente(db: Session, d: dict) -> str:
 
 def crear(db: Session, asesor_id: str, agencia_id: str | None, d: dict) -> dict:
     """Crea una solicitud de credito (M5 / HU-17)."""
+    _, tea = validate_credit_terms(
+        amount=float(d["monto_solicitado"]),
+        term_months=int(d["plazo_meses"]),
+        tea=d.get("tea_referencial"),
+        destino_credito=d.get("destino_credito"),
+        tipo_negocio=d.get("tipo_negocio"),
+    )
+    cuota = d.get("cuota_estimada")
+    if cuota is None:
+        cuota = french_installment(
+            float(d["monto_solicitado"]),
+            int(d["plazo_meses"]),
+            tea,
+        )
     cliente_id = _upsert_cliente(db, d)
     sol_id = str(uuid.uuid4())
     expediente = "EXP-" + sol_id.replace("-", "")[:8].upper()
@@ -65,8 +80,8 @@ def crear(db: Session, asesor_id: str, agencia_id: str | None, d: dict) -> dict:
             "tc": d.get("tipo_cuota", "mensual"),
             "gar": d.get("garantia", "sin_garantia"),
             "dest": d.get("destino_credito"),
-            "cuota": d.get("cuota_estimada"),
-            "tea": d.get("tea_referencial"),
+            "cuota": cuota,
+            "tea": tea,
             "firma": d.get("firma_cliente_base64"),
         },
     )
